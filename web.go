@@ -35,6 +35,8 @@ var dataPeriod int32
 
 var proc ProcAll
 
+var procJson []byte
+
 var mutex = &sync.Mutex{}
 
 var webRoot = flag.String("webroot", "./web/", "Path to web root directory")
@@ -109,6 +111,7 @@ func procUpdater() {
 		}
 		mutex.Lock()
 		proc.Update()
+		procJson, _ = json.Marshal(proc)
 		mutex.Unlock()
 		synca.StoreInt32(&dataFlag, NO_DATA)
 		dataPeriod--
@@ -148,35 +151,13 @@ func fileJsConfig(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(js))
 }
 
-func fileStat(w http.ResponseWriter, r *http.Request) {
-	req := r.URL.RequestURI()
-	logger(DEBUG, func() { log.Println("Servig http proc stat request: " + req) })
-	b, _ := json.Marshal(proc.Stat)
-	w.Write(b)
-}
-
-func fileMeminfo(w http.ResponseWriter, r *http.Request) {
-	req := r.URL.RequestURI()
-	logger(DEBUG, func() { log.Println("Servig http proc meminfo request: " + req) })
-	b, _ := json.Marshal(proc.Meminfo)
-	w.Write(b)
-}
-
 func fileProc(w http.ResponseWriter, r *http.Request) {
 	synca.StoreInt32(&dataFlag, NEED_DATA)
 	req := r.URL.RequestURI()
 	logger(DEBUG, func() { log.Println("Servig http proc request: " + req) })
 	mutex.Lock()
-	b, _ := json.Marshal(proc)
+	w.Write(procJson)
 	mutex.Unlock()
-	w.Write(b)
-}
-
-func fileProcesses(w http.ResponseWriter, r *http.Request) {
-	req := r.URL.RequestURI()
-	logger(DEBUG, func() { log.Println("Servig http proc request: " + req) })
-	b, _ := json.Marshal(proc.Processes.All)
-	w.Write(b)
 }
 
 func fileRoot(w http.ResponseWriter, r *http.Request) {
@@ -239,10 +220,7 @@ func main() {
 		}
 	}()
 
-	http.HandleFunc("/ps", fileProcesses)
 	http.HandleFunc("/proc", fileProc)
-	http.HandleFunc("/stat", fileStat)
-	http.HandleFunc("/meminfo", fileMeminfo)
 	http.HandleFunc("/config.js", fileJsConfig)
 
 	for _, handler := range handlers {
