@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>jQuery Projects</title>
+    <title>Sample /proc to web daemon</title>
     <link rel="stylesheet" href="jquery-ui.min.css"/>
     <link rel="stylesheet" href="jquery.jqplot.min.css"/>
     <link rel="stylesheet" href="jquery.dataTables.css"/>
@@ -447,6 +447,7 @@ function updateData(){
         }
            
         $( "#hostname" ).replaceWith('<div id="hostname" style="margin-right:3px;float:left"><b>Hostname:</b> '+proc.Kernel.Hostname+'</div>');
+        document.title = proc.Kernel.Hostname;
         $( "#uptime" ).replaceWith('<div id="uptime" style="margin-right:3px;float:left"><b>Uptime:</b> '+calcUptime(proc.Misc.Uptime)+'</div>');
         $( "#avg" ).replaceWith('<div id="avg"><b>Avg:</b> '+proc.Misc.Avg+'</div>');
 
