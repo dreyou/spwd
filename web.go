@@ -143,6 +143,8 @@ func fileJsConfig(w http.ResponseWriter, r *http.Request) {
 	req := r.URL.RequestURI()
 	logger(DEBUG, func() { log.Println("Servig http js config: " + req) })
 	js := fmt.Sprintf(jsConfig, Conf.Js.MaxPoints, (Conf.Js.TimeToRefresh * 60 * 1000), (Conf.Js.TimeToReload * 1000))
+	headers := w.Header()
+	headers["Content-Type"] = []string{"text/javascript"}
 	w.Write([]byte(js))
 }
 

@@ -16,9 +16,10 @@
   <div id="avg"> Avg:</div>
 </div>
 <div>
-  <div id="loadchart" style="width:500px;float:left"></div>
-  <div id="memchart" style="width:500px;float:left"></div>
-  <div id="fschart" style="width:500px;float:left;"></div>
+  <div id="loadchart" style="width:25%;float:left"></div>
+  <div id="memchart" style="width:25%;float:left"></div>
+  <div id="fschart" style="width:25%;float:left;"></div>
+  <div id="netchart" style="width:25%;float:left;"></div>
 </div>
 
 <div id="ptable"><table cellpadding="0" cellspacing="0" border="0" class="display compact" id="processes"></table></div>
@@ -46,6 +47,7 @@ var cpuPlot0 = null;
 var cpuPlot1 = null;
 var memPlot0 = null;
 var fsPlot0 = null;
+var netPlot0 = null;
 
 var sTime = new Date().getTime();
 var dTime = new Date().getTime();
@@ -114,6 +116,74 @@ function drawTable(proc){
     proc = null;
 }
 
+function drawNet(proc){
+    var all = proc.Net.All.sort(function(a,b){return b.Name.localeCompare(a.Name);});
+    var netR = [];
+    var netT = [];
+    var netE = [];
+    var net100 = [];
+    var netLabels = [];
+    var netNull = [];
+    var div = 1024*1024;
+
+    for(var i=0;i<all.length;i++){
+        var r = Math.round(all[i].Receive.Bytes/1024/1024);
+        var t = Math.round(all[i].Transmit.Bytes/1024/1024);
+        var e = Math.round(all[i].Receive.Errs+all[i].Transmit.Errs/1024);
+        netLabels.push(all[i].Name+", Recv: "+r+"MB"+", Trns: "+t+"MB"+", Errs: "+e+"KB");
+        netNull.push(null);
+        net100.push(0);
+        netR.push(r);
+        netT.push(t);
+        netE.push(e);
+    }
+
+    if(netPlot0 != null){
+       netPlot0.destroy();
+       netPlot0 = null;
+    }
+
+    
+    $( "#netchart" ).replaceWith('<div id="netchart" style="width:25%;float:left;"></div>');
+
+    netPlot0 = $.jqplot('netchart', [net100,netR,netT,netE],
+        {
+            stackSeries: true,
+            seriesDefaults:{
+                renderer: $.jqplot.BarRenderer,
+                rendererOptions: {
+                    fillToZero: true,
+                    barDirection: 'horizontal'
+                },
+            },
+            seriesColors: ["#ffffff","#99FF66","#6666FF","#FF8080"],
+            series: [{label:"_",show:false,pointLabels:{show:true,labels:netLabels,stackedValue: true}},{label:"Recv",pointLabels:{}},{label:"Trns",pointLabels:{}},{label:"Errs",pointLabels:{}}],
+            legend: {
+                show: true,
+                placement: 'inside'
+            },
+            axesDefaults: {
+                tickOptions: {
+                    showLabel: false,
+                    showMark: false,
+                    show: false,
+                },
+                showTicks: false,
+                showTickMarks: false,
+            },
+            axes: {
+                yaxis: {
+                    renderer: $.jqplot.CategoryAxisRenderer,
+                    ticks: netNull,
+                },
+                xaxis: {
+                }
+            }
+        }
+    );
+    proc = null
+}
+
 function drawSize(proc){
     var all = proc.AllFs.All;
     var fsDataUsed = [];
@@ -140,7 +210,7 @@ function drawSize(proc){
     }
 
     
-    $( "#fschart" ).replaceWith('<div id="fschart" style="width:500px;float:left;"></div>');
+    $( "#fschart" ).replaceWith('<div id="fschart" style="width:25%;float:left;"></div>');
 
     fsPlot0 = $.jqplot('fschart', [fsData100,fsDataUsed,fsDataAvail],
         {
@@ -152,6 +222,7 @@ function drawSize(proc){
                     barDirection: 'horizontal'
                 },
             },
+            seriesColors: ["#ffffff","#FF5C33","#DBFFDB"],
             series: [{label:"_",show:false,pointLabels:{show:true,labels:fsDataLabels,stackedValue: true}},{label:"Used",pointLabels:{}},{label:"Free",pointLabels:{}}],
             legend: {
                 show: true,
@@ -227,7 +298,7 @@ function drawLoad(proc){
        cpuPlot1 = null;
     }
 
-    $( "#loadchart" ).replaceWith('<div id="loadchart" style="width:500px;float:left;"></div>');
+    $( "#loadchart" ).replaceWith('<div id="loadchart" style="width:25%;float:left;"></div>');
 
     cpuPlot0 = $.jqplot('loadchart', [procData100,procDataUser,procDataNice,procDataSystem,procDataIdle],
         {
@@ -316,7 +387,7 @@ function drawMem(proc){
        memPlot0 = null;
     }
 
-    $( "#memchart" ).replaceWith('<div id="memchart" style="width:500px;float:left;"></div>');
+    $( "#memchart" ).replaceWith('<div id="memchart" style="width:25%;float:left;"></div>');
 
     memPlot0 = $.jqplot('memchart', [memData],
         {
@@ -362,6 +433,7 @@ function updateData(){
         drawMem(proc);
         drawSize(proc);
         drawTable(proc);
+        drawNet(proc);
 
         proc = null;
 
