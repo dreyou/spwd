@@ -30,6 +30,7 @@
 <script type="text/javascript" src="plugins/jqplot.pieRenderer.min.js"></script>
 <script type="text/javascript" src="plugins/jqplot.donutRenderer.min.js"></script>
 <script type="text/javascript" src="plugins/jqplot.barRenderer.min.js"></script>
+<script type="text/javascript" src="plugins/jqplot.donutRenderer.min.js"></script>
 <script type="text/javascript" src="plugins/jqplot.categoryAxisRenderer.min.js"></script>
 <script type="text/javascript" src="plugins/jqplot.pointLabels.min.js"></script>
 <script type="text/javascript" src="jquery.dataTables.min.js"></script>
@@ -372,14 +373,23 @@ function drawLoad(proc){
     proc = null;
 }
 
+function memKb2Str(mem){
+    return Math.round(mem/1024/1024*10)/10+"GB";
+}
+
 function drawMem(proc){
     var stats = proc.Stat
     var mem = proc.Meminfo
 
-    var memFree = mem.Info.MemFree/100;
-    var memUsed = (mem.Info.MemTotal-mem.Info.MemFree)/100;
+    var memFree = mem.Info.MemFree;
+    var memUsed = (mem.Info.MemTotal-mem.Info.MemFree);
+    var swapFree = mem.Info.SwapFree;
+    var swapUsed = (mem.Info.SwapTotal-mem.Info.SwapFree);
     var memData = [
-        ['FreeMem',memFree],['UsedMem',memUsed]
+        ['FreeMem: '+memKb2Str(memFree),memFree/100],['UsedMem: '+memKb2Str(memUsed),memUsed/100]
+    ]
+    var swapData = [
+        ['FreeSwap: '+memKb2Str(swapFree),swapFree/100],['UsedSwap'+memKb2Str(swapUsed),swapUsed/100]
     ]
 
     if(memPlot0 != null){
@@ -389,14 +399,18 @@ function drawMem(proc){
 
     $( "#memchart" ).replaceWith('<div id="memchart" style="width:25%;float:left;"></div>');
 
-    memPlot0 = $.jqplot('memchart', [memData],
+    memPlot0 = $.jqplot('memchart', [memData,swapData],
         {
             seriesDefaults:{
-                renderer: jQuery.jqplot.PieRenderer,
-                rendererOptions: {showDataLabels: true}
+                renderer: jQuery.jqplot.DonutRenderer,
+                rendererOptions: {
+                    showDataLabels: true,
+                    sliceMargin: 3,
+                    dataLabels:'label'
+                }
             },
             grid:{borderWidth:0,shadow: false},
-            legend: { show:true, location: 'e' }
+            legend: { show:false, location: 'e' }
         }
     ); 
     proc = null;
