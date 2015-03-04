@@ -86,4 +86,7 @@ func TestProcAll(t *testing.T) {
 	if len(all.AllFs.All) < 1 {
 		t.Error("Empty processes list!")
 	}
+	if len(all.Net.All) < 1 {
+		t.Error("Empty net dev list!")
+	}
 }

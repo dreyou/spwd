@@ -39,6 +39,7 @@ type ProcAll struct {
 	Kernel    Kernel
 	Processes Processes
 	AllFs     AllFs
+	Net       Net
 }
 
 func (pa *ProcAll) Init() {
@@ -48,6 +49,7 @@ func (pa *ProcAll) Init() {
 		&pa.Kernel,
 		&pa.Processes,
 		&pa.AllFs,
+		&pa.Net,
 		&pa.Misc,
 	}
 	for _, a := range pa.all {
@@ -100,7 +102,9 @@ func readFileToMap(fileName string, splitMatch string) map[string]int64 {
 	for scanner.Scan() {
 		line := scanner.Text()
 		res := regexp.MustCompile(splitMatch).Split(line, -1)
-		Map[res[0]], _ = strconv.ParseInt(res[1], 0, 64)
+		if len(res) > 1 {
+			Map[res[0]], _ = strconv.ParseInt(res[1], 0, 64)
+		}
 	}
 	return Map
 }
@@ -160,9 +164,12 @@ func readFileMap(names []string, fileName string, splitMatch string) map[string]
 	for scanner.Scan() {
 		line := scanner.Text()
 		values := regexp.MustCompile(splitMatch).Split(line, -1)
+		if len(values) < 2 {
+			continue
+		}
 		for _, name := range names {
-			if values[0] == name {
-				Map[name] = values[1]
+			if regexp.MustCompile(name).MatchString(strings.TrimSpace(values[0])) {
+				Map[strings.TrimSpace(values[0])] = values[1]
 			}
 		}
 	}

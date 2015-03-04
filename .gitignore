@@ -25,3 +25,6 @@ _testmain.go
 
 # Project
 spwd.gcfg
+
+# Vim
+.*.swp
