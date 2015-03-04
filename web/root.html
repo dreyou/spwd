@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>jQuery Projects</title>
+    <link rel="stylesheet" href="jquery-ui.min.css"/>
+    <link rel="stylesheet" href="jquery.jqplot.min.css"/>
+    <link rel="stylesheet" href="jquery.dataTables.css"/>
+    <link rel="stylesheet" href="root.css"/>
+</head>
+<body style="font-family:Sans;font-size:small">
+
+<div> 
+  <div id="hostname" style="float:left">Hostname:</div>
+  <div id="uptime" style="float:left">Uptime:</div>
+  <div id="avg"> Avg:</div>
+</div>
+<div>
+  <div id="loadchart" style="width:500px;float:left"></div>
+  <div id="memchart" style="width:500px;float:left"></div>
+  <div id="fschart" style="width:500px;float:left;"></div>
+</div>
+
+<div id="ptable"><table cellpadding="0" cellspacing="0" border="0" class="display compact" id="processes"></table></div>
+
+<script type="text/javascript" src="jquery.min.js"></script>
+<script type="text/javascript" src="jquery-ui.min.js"></script>
+<script type="text/javascript" src="jquery.jqplot.min.js"></script>
+<script type="text/javascript" src="plugins/jqplot.pieRenderer.min.js"></script>
+<script type="text/javascript" src="plugins/jqplot.donutRenderer.min.js"></script>
+<script type="text/javascript" src="plugins/jqplot.barRenderer.min.js"></script>
+<script type="text/javascript" src="plugins/jqplot.categoryAxisRenderer.min.js"></script>
+<script type="text/javascript" src="plugins/jqplot.pointLabels.min.js"></script>
+<script type="text/javascript" src="jquery.dataTables.min.js"></script>
+<script type="text/javascript" src="config.js"></script>
+<script>
+
+/*
+//config.js
+var maxPoints = 10;
+var timeToRefresh = 1*60*1000;
+var timeToReload = 2000;
+*/
+
+var cpuPlot0 = null;
+var cpuPlot1 = null;
+var memPlot0 = null;
+var fsPlot0 = null;
+
+var sTime = new Date().getTime();
+var dTime = new Date().getTime();
+var cpuLoad = [];
+
+var pTable = $('#processes').DataTable({
+            "lengthMenu": [ [25, 50, -1], [25, 50, "All"] ],
+            "order": [[ 1, "desc" ]],
+            "createdRow": function( row, data, dataIndex ) {
+                 $(row).on('click',function(e){onRowClick(data[0])});
+            },
+            "columns": [
+                { "title": "pid" },
+                { "title": "load%" },
+                { "title": "mem%" },
+                { "title": "load" },
+                { "title": "user" },
+                { "title": "ppid" },
+                { "title": "comm" },
+             ]
+        });
+
+function onRowClick(pid){
+    var cTime = new Date().getTime();
+    if((cTime-dTime)<500){
+    	alert(pid);
+    }
+    dTime = cTime;
+}
+
+function updateCpuLoad(j,stats){
+    if(cpuLoad[j] == null){cpuLoad[j] = [];}
+    if(cpuLoad[j].push([0,stats.Cpus[j].Load.All]) >= maxPoints+2){
+        cpuLoad[j].shift();
+    }
+    var maxValue = 0;
+    for(var i=0;i<cpuLoad[j].length;i++){
+        cpuLoad[j][i][0] = i;
+        if(cpuLoad[j][i][1] > maxValue)maxValue = cpuLoad[j][i][1];
+    }
+    return maxValue;
+}
+
+
+function drawTable(proc){
+    var processes = proc.Processes;
+    var dataSet = [];
+
+    for (var i = 0; i < processes.All.length; i++){
+        p = processes.All[i];
+        var time = new Date().getTime();
+        var load = p.Diff.utime*1+p.Diff.stime*1;
+        var loadAll = p.Stat.utime*1+p.Stat.stime*1;
+	var runtime = time - (proc.Stat.Stats.btime*1+p.Stat.starttime*1);
+        var tdiff = processes.Time*1-processes.TimePrev*1;
+        var ploadAll = Math.round(loadAll/runtime*1000000000)/100;
+        var pload = Math.round(load/tdiff*100)/100;
+	var mem = (p.Stat.rss*proc.Stat.Pagesize/(proc.Meminfo.Info.MemTotal*1000))*100;
+	mem = Math.round(mem*100)/100;
+        dataSet.push(
+            [p.Stat.pid,pload,mem,ploadAll,p.User.Real.Name,p.Stat.ppid,p.Stat.comm]
+        );
+    }
+    pTable.clear();
+    pTable.rows.add(dataSet).draw();
+    proc = null;
+}
+
+function drawSize(proc){
+    var all = proc.AllFs.All;
+    var fsDataUsed = [];
+    var fsDataAvail = [];
+    var fsData100 = [];
+    var fsDataLabels = [];
+    var fsDataNull = [];
+    var div = 1024*1024*1024;
+
+    for(var i=0;i<all.length;i++){
+        var avail = Math.round((all[i].Size.Avail*1)/all[i].Size.Total*10000)/100;
+        var used  = 100 - avail;
+        var tot   = Math.round(all[i].Size.Total/div*100)/100
+        fsDataLabels.push(all[i].Mount+", total: "+tot+"MB"+", avail: "+avail+"%"+", type: "+all[i].Type);
+        fsDataNull.push(null);
+        fsData100.push(0);
+        fsDataUsed.push(used);
+        fsDataAvail.push(avail);
+    }
+
+    if(fsPlot0 != null){
+       fsPlot0.destroy();
+       fsPlot0 = null;
+    }
+
+    
+    $( "#fschart" ).replaceWith('<div id="fschart" style="width:500px;float:left;"></div>');
+
+    fsPlot0 = $.jqplot('fschart', [fsData100,fsDataUsed,fsDataAvail],
+        {
+            stackSeries: true,
+            seriesDefaults:{
+                renderer: $.jqplot.BarRenderer,
+                rendererOptions: {
+                    fillToZero: true,
+                    barDirection: 'horizontal'
+                },
+            },
+            series: [{label:"_",show:false,pointLabels:{show:true,labels:fsDataLabels,stackedValue: true}},{label:"Used",pointLabels:{}},{label:"Free",pointLabels:{}}],
+            legend: {
+                show: true,
+                placement: 'inside'
+            },
+            axesDefaults: {
+                tickOptions: {
+                    showLabel: false,
+                    showMark: false,
+                    show: false,
+                },
+                showTicks: false,
+                showTickMarks: false,
+            },
+            axes: {
+                yaxis: {
+                    renderer: $.jqplot.CategoryAxisRenderer,
+                    ticks: fsDataNull,
+                },
+                xaxis: {
+                    max: 101,
+                    min: 0,
+                }
+            }
+        }
+    );
+    proc = null
+}
+
+function drawLoad(proc){
+    var stats = proc.Stat
+    var maxValue = updateCpuLoad(0,stats);
+    var procDataUser = [];
+    var procDataNice = [];
+    var procDataSystem = [];
+    var procDataIdle = [];
+    var procData100 = [];
+    var procDataNull = [];
+    var procDataNames = [];
+    var procDataLabels = [];
+    var colors = ["#dd0000","#006600","#008800","#00aa00","#00cc00","#00ee00","#000066","#000088","#0000aa","#0000cc","#0000ee"]
+    var procSeriesColors = [];
+
+    for(var i=1;i<5;i++){
+        updateCpuLoad(i,stats);
+    }
+
+    for(i=0;i<proc.Stat.Cpus.length;i++){
+        var stat = proc.Stat.Cpus[i];
+        var total = stat.Load.User+stat.Load.Nice+stat.Load.System+stat.Load.Idle;
+        var user = Math.round(stat.Load.User/total*10000)/100;
+        var nice = Math.round(stat.Load.Nice/total*10000)/100;
+        var system = Math.round(stat.Load.System/total*10000)/100;
+        var idle = Math.round(stat.Load.Idle/total*10000)/100;
+        procData100.push(0);
+        procDataNull.push(null);
+        procDataUser.push(user);
+        procDataNice.push(nice);
+        procDataSystem.push(system);
+        procDataIdle.push(idle);
+        procDataLabels.push(stat.Name+" us: "+user+"%, ni: "+nice+"%, sy: "+system+"%, id:"+idle+"%");
+        procDataNames.push(stat.Name);
+        procSeriesColors.push(colors[i]);
+    }
+
+    if(cpuPlot0 != null){
+       cpuPlot0.destroy();
+       cpuPlot0 = null;
+    }
+
+    if(cpuPlot1 != null){
+       cpuPlot1.destroy();
+       cpuPlot1 = null;
+    }
+
+    $( "#loadchart" ).replaceWith('<div id="loadchart" style="width:500px;float:left;"></div>');
+
+    cpuPlot0 = $.jqplot('loadchart', [procData100,procDataUser,procDataNice,procDataSystem,procDataIdle],
+        {
+            stackSeries: true,
+            seriesDefaults:{
+                renderer: $.jqplot.BarRenderer,
+                rendererOptions: {
+                    fillToZero: true,
+                    barDirection: 'horizontal'
+                },
+            },
+            seriesColors: ["#ffffff","#FFAD99","#B2FFB2","#B2D1FF","#E6E6E6"],
+            series: [{label:"_",show:false,pointLabels:{show:true,labels:procDataLabels,stackedValue: true}},{label:"us",pointLabels:{}},{label:"ni",pointLabels:{}},{label:"sy",pointLabels:{}},{label:"id",pointLabels:{}}],
+            legend: {
+                show: true,
+                placement: 'inside'
+            },
+            axesDefaults: {
+                tickOptions: {
+                    showLabel: false,
+                    showMark: false,
+                    show: false,
+                    showGridline: false,
+                },
+                showTicks: false,
+                showTickMarks: false,
+                padMin: 4,
+            },
+            axes: {
+                yaxis: {
+                    renderer: $.jqplot.CategoryAxisRenderer,
+                    ticks: procDataNull,
+                },
+                xaxis: {
+                    max: 101,
+                    min: 0,
+                }
+            }
+        }
+    );
+
+    cpuPlot1 = $.jqplot('loadchart', cpuLoad,
+        {
+            axes:{
+                yaxis:{
+                    min:0,
+                    max:Math.round(maxValue+5),
+                    tickOptions: {
+                        showLabel: false,
+                        showMark: false,
+                        show: true,
+                        showGridline: false,
+                        mark: 'inside',
+                    },
+                },
+                xaxis:{
+                    min:0,
+                    max:maxPoints,
+                    tickOptions:{
+                        showMark:false,
+                        showLabel:false,
+                        showGridline: false,
+                    },
+                },
+            },
+            seriesDefaults:{markerOptions:{show:false}},
+            grid:{background:"transparent"},
+            seriesColors: procSeriesColors,
+        }
+    ); 
+    proc = null;
+}
+
+function drawMem(proc){
+    var stats = proc.Stat
+    var mem = proc.Meminfo
+
+    var memFree = mem.Info.MemFree/100;
+    var memUsed = (mem.Info.MemTotal-mem.Info.MemFree)/100;
+    var memData = [
+        ['FreeMem',memFree],['UsedMem',memUsed]
+    ]
+
+    if(memPlot0 != null){
+       memPlot0.destroy();
+       memPlot0 = null;
+    }
+
+    $( "#memchart" ).replaceWith('<div id="memchart" style="width:500px;float:left;"></div>');
+
+    memPlot0 = $.jqplot('memchart', [memData],
+        {
+            seriesDefaults:{
+                renderer: jQuery.jqplot.PieRenderer,
+                rendererOptions: {showDataLabels: true}
+            },
+            grid:{borderWidth:0,shadow: false},
+            legend: { show:true, location: 'e' }
+        }
+    ); 
+    proc = null;
+}
+
+function calcUptime(uptime){
+    var d = 24*60*60;
+    var h = 60*60;
+    var m = 60;
+    if(uptime/d > 1){
+        return Math.round(uptime/d)+" day(s)";
+    }
+    if(uptime/h > 1){
+        return Math.round(uptime/h)+" howr(s)";
+    }
+    return Math.round(uptime/h)+" min(s)";
+}
+
+function updateData(){
+
+    $.getJSON( "proc", function( proc ) {
+
+        var cTime = new Date().getTime();
+
+        if((cTime - sTime) > timeToRefresh) {
+            location.reload();
+        }
+           
+        $( "#hostname" ).replaceWith('<div id="hostname" style="margin-right:3px;float:left"><b>Hostname:</b> '+proc.Kernel.Hostname+'</div>');
+        $( "#uptime" ).replaceWith('<div id="uptime" style="margin-right:3px;float:left"><b>Uptime:</b> '+calcUptime(proc.Misc.Uptime)+'</div>');
+        $( "#avg" ).replaceWith('<div id="avg"><b>Avg:</b> '+proc.Misc.Avg+'</div>');
+
+        drawLoad(proc);
+        drawMem(proc);
+        drawSize(proc);
+        drawTable(proc);
+
+        proc = null;
+
+    });
+}
+
+updateData();
+
+var update = setInterval(function(){updateData();},timeToReload);
+
+
+</script>
+ 
+</body>
+</html>
