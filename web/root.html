@@ -254,8 +254,8 @@ function drawSize(proc){
 }
 
 function drawLoad(proc){
+    var all = proc.Stat.Cpus.sort(function(a,b){return b.Name.localeCompare(a.Name);});
     var stats = proc.Stat
-    var maxValue = updateCpuLoad(0,stats);
     var procDataUser = [];
     var procDataNice = [];
     var procDataSystem = [];
@@ -264,15 +264,22 @@ function drawLoad(proc){
     var procDataNull = [];
     var procDataNames = [];
     var procDataLabels = [];
-    var colors = ["#dd0000","#006600","#008800","#00aa00","#00cc00","#00ee00","#000066","#000088","#0000aa","#0000cc","#0000ee"]
+    var colors = ["#006600","#008800","#00aa00","#00cc00","#00ee00","#000066","#000088","#0000aa","#0000cc","#0000ee"]
     var procSeriesColors = [];
 
-    for(var i=1;i<5;i++){
-        updateCpuLoad(i,stats);
+    colors[all.length-1] = "#dd0000";
+
+    var maxValue = 0;
+
+    for(var i=0;i<5;i++){
+        var tMax = updateCpuLoad(i,stats);
+        if( tMax > maxValue){
+            maxValue = tMax;
+        }
     }
 
-    for(i=0;i<proc.Stat.Cpus.length;i++){
-        var stat = proc.Stat.Cpus[i];
+    for(i=0;i<all.length;i++){
+        var stat = all[i];
         var total = stat.Load.User+stat.Load.Nice+stat.Load.System+stat.Load.Idle;
         var user = Math.round(stat.Load.User/total*10000)/100;
         var nice = Math.round(stat.Load.Nice/total*10000)/100;
