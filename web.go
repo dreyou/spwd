@@ -29,6 +29,8 @@ const INFO = 1
 
 const DEBUG = 2
 
+const TRACE = 3
+
 var dataFlag int32
 
 var dataPeriod int32
@@ -121,8 +123,7 @@ func procUpdater() {
 }
 
 func (hf HttpFile) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if notAllow(r) {
-		http.Error(w, "403 Forbidden : you can't access this resource.", 403)
+	if notAllow(w, r) {
 		return
 	}
 	req := r.URL.RequestURI()
@@ -143,6 +144,9 @@ func (hf HttpFile) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func fileJsConfig(w http.ResponseWriter, r *http.Request) {
+	if notAllow(w, r) {
+		return
+	}
 	req := r.URL.RequestURI()
 	logger(DEBUG, func() { log.Println("Servig http js config: " + req) })
 	js := fmt.Sprintf(jsConfig, Conf.Js.MaxPoints, (Conf.Js.TimeToRefresh * 60 * 1000), (Conf.Js.TimeToReload * 1000))
@@ -152,6 +156,9 @@ func fileJsConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func fileProc(w http.ResponseWriter, r *http.Request) {
+	if notAllow(w, r) {
+		return
+	}
 	synca.StoreInt32(&dataFlag, NEED_DATA)
 	req := r.URL.RequestURI()
 	logger(DEBUG, func() { log.Println("Servig http proc request: " + req) })
@@ -161,6 +168,9 @@ func fileProc(w http.ResponseWriter, r *http.Request) {
 }
 
 func fileRoot(w http.ResponseWriter, r *http.Request) {
+	if notAllow(w, r) {
+		return
+	}
 	req := r.URL.RequestURI()
 	logger(DEBUG, func() { log.Println("Servig http requesti for root: " + req) })
 	if req == "/favicon.ico" {
@@ -184,9 +194,16 @@ func fileLog(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func notAllow(r *http.Request) bool {
+func notAllow(w http.ResponseWriter, r *http.Request) bool {
+	allowExp := strings.Replace(Conf.Main.Allow, `.`, `\.`, -1)
+	allowExp = strings.Replace(allowExp, `*`, `.+`, -1)
+	logger(TRACE, func() { log.Println("Allow regexp:" + allowExp) })
 	addr := regexp.MustCompile(`:`).Split(r.RemoteAddr, -1)[0]
-	return !regexp.MustCompile(Conf.Main.Allow).MatchString(addr)
+	res := !regexp.MustCompile(allowExp).MatchString(addr)
+	if res {
+		http.Error(w, "403 Forbidden : you can't access this resource.", 403)
+	}
+	return res
 }
 
 func main() {
