@@ -64,7 +64,7 @@ var pTable = $('#processes').DataTable({
                 { "title": "pid" },
                 { "title": "load%" },
                 { "title": "mem%" },
-                { "title": "load" },
+                { "title": "time" },
                 { "title": "user" },
                 { "title": "ppid" },
                 { "title": "comm" },
@@ -96,20 +96,10 @@ function updateCpuLoad(j,stats){
 function drawTable(proc){
     var processes = proc.Processes;
     var dataSet = [];
-
     for (var i = 0; i < processes.All.length; i++){
         p = processes.All[i];
-        var time = new Date().getTime();
-        var load = p.Diff.utime*1+p.Diff.stime*1;
-        var loadAll = p.Stat.utime*1+p.Stat.stime*1;
-	var runtime = time - (proc.Stat.Stats.btime*1+p.Stat.starttime*1);
-        var tdiff = processes.Time*1-processes.TimePrev*1;
-        var ploadAll = Math.round(loadAll/runtime*1000000000)/100;
-        var pload = Math.round(load/tdiff*100)/100;
-	var mem = (p.Stat.rss*proc.Stat.Pagesize/(proc.Meminfo.Info.MemTotal*1000))*100;
-	mem = Math.round(mem*100)/100;
         dataSet.push(
-            [p.Stat.pid,pload,mem,ploadAll,p.User.Real.Name,p.Stat.ppid,p.Stat.comm]
+            [p.Stat.pid,p.ProcLoad,p.MemLoad,calcUptime(p.Uptime),p.User.Real.Name,p.Stat.ppid,p.Stat.comm]
         );
     }
     pTable.clear();
@@ -198,7 +188,7 @@ function drawSize(proc){
         var avail = Math.round((all[i].Size.Avail*1)/all[i].Size.Total*10000)/100;
         var used  = 100 - avail;
         var tot   = Math.round(all[i].Size.Total/div*100)/100
-        fsDataLabels.push(all[i].Mount+", total: "+tot+"MB"+", avail: "+avail+"%"+", type: "+all[i].Type);
+        fsDataLabels.push(all[i].Mount+", total: "+tot+"GB"+", avail: "+avail+"%"+", type: "+all[i].Type);
         fsDataNull.push(null);
         fsData100.push(0);
         fsDataUsed.push(used);
@@ -433,7 +423,7 @@ function calcUptime(uptime){
     if(uptime/h > 1){
         return Math.round(uptime/h)+" howr(s)";
     }
-    return Math.round(uptime/h)+" min(s)";
+    return Math.round(uptime/m)+" min(s)";
 }
 
 function updateData(){

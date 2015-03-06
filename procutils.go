@@ -61,6 +61,9 @@ func (pa *ProcAll) Update() {
 	for _, a := range pa.all {
 		a.Update()
 	}
+	for _, p := range pa.Processes.All {
+		p.updateLoadInfo(pa.Stat, pa.Meminfo, (pa.Processes.Time - pa.Processes.TimePrev))
+	}
 }
 
 type Misc struct {
@@ -220,14 +223,18 @@ type Match struct {
 	split string
 }
 
+func parseInt64(in string) (i int64, err error) {
+	return strconv.ParseInt(strings.TrimSpace(in), 0, 64)
+}
+
 func (p *Proc) update(line string) {
 	procStats := p.doSplit(line)
 	p.Name = procStats[0]
 	var nstat ProcStat
-	nstat.User, _ = strconv.ParseInt(procStats[1], 0, 64)
-	nstat.Nice, _ = strconv.ParseInt(procStats[2], 0, 64)
-	nstat.System, _ = strconv.ParseInt(procStats[3], 0, 64)
-	nstat.Idle, _ = strconv.ParseInt(procStats[4], 0, 64)
+	nstat.User, _ = parseInt64(procStats[1])
+	nstat.Nice, _ = parseInt64(procStats[2])
+	nstat.System, _ = parseInt64(procStats[3])
+	nstat.Idle, _ = parseInt64(procStats[4])
 	p.Load = p.calcLoad(p.Stat, nstat)
 	p.Stat = nstat
 }

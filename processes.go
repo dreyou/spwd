@@ -44,6 +44,9 @@ type Process struct {
 	User      User
 	Group     User
 	live      bool
+	ProcLoad  float32
+	MemLoad   float32
+	Uptime    int64
 }
 
 type User struct {
@@ -74,6 +77,16 @@ func (pr *Process) Update() {
 	pr.Cmdline = readOneLine(fmt.Sprintf("%v/%v/cmdline", PROC_DIR, pr.Pid))
 	pr.updateAuthInfo()
 	pr.live = true
+}
+
+func (pr *Process) updateLoadInfo(stat Stat, meminfo Mem, period int64) {
+	timeNow := time.Now().Unix()
+	starttime, _ := parseInt64(pr.Stat["starttime"])
+	btime, _ := parseInt64(stat.Stats["btime"])
+	pr.Uptime = timeNow - (btime + starttime/int64(stat.Sc_clk_tck))
+	pr.ProcLoad = trun((float32(pr.Diff["utime"]) + float32(pr.Diff["stime"])) / float32(period))
+	rss, _ := parseInt64(pr.Stat["rss"])
+	pr.MemLoad = trun((float32((rss * int64(stat.Pagesize))) / (float32(meminfo.Info["MemTotal"] * 10))))
 }
 
 func (pr *Process) updateAuthInfo() {
