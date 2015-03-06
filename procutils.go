@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 /*
@@ -32,6 +33,7 @@ type ProcCommon interface {
 }
 
 type ProcAll struct {
+	TimeStamp string
 	all       []ProcCommon
 	Stat      Stat
 	Misc      Misc
@@ -43,6 +45,7 @@ type ProcAll struct {
 }
 
 func (pa *ProcAll) Init() {
+	pa.TimeStamp = time.Now().Format(time.RFC3339)
 	pa.all = []ProcCommon{
 		&pa.Stat,
 		&pa.Meminfo,
@@ -121,6 +124,7 @@ func (m *Mem) Init() {
 }
 
 type Stat struct {
+	Cpu        *Proc
 	Cpus       []*Proc
 	Stats      map[string]string
 	Sc_clk_tck C.long
@@ -140,6 +144,7 @@ func createCpusArray() []*Proc {
 
 func (s *Stat) Init() {
 	s.Cpus = createCpusArray()
+	s.Cpu = s.Cpus[0]
 	s.Update()
 }
 

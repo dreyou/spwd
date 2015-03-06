@@ -62,14 +62,29 @@ var pTable = $('#processes').DataTable({
             },
             "columns": [
                 { "title": "pid" },
+                { "title": "comm" },
+                { "title": "user" },
+                { "title": "state" },
                 { "title": "load%" },
                 { "title": "mem%" },
                 { "title": "time" },
-                { "title": "user" },
                 { "title": "ppid" },
-                { "title": "comm" },
              ]
         });
+
+function drawTable(proc){
+    var processes = proc.Processes;
+    var dataSet = [];
+    for (var i = 0; i < processes.All.length; i++){
+        p = processes.All[i];
+        dataSet.push(
+            [p.Stat.pid,p.Stat.comm,p.User.Real.Name,p.Stat.state,p.ProcLoad,p.MemLoad,calcUptime(p.Uptime),p.Stat.ppid]
+        );
+    }
+    pTable.clear();
+    pTable.rows.add(dataSet).draw();
+    proc = null;
+}
 
 function onRowClick(pid){
     var cTime = new Date().getTime();
@@ -90,21 +105,6 @@ function updateCpuLoad(j,stats){
         if(cpuLoad[j][i][1] > maxValue)maxValue = cpuLoad[j][i][1];
     }
     return maxValue;
-}
-
-
-function drawTable(proc){
-    var processes = proc.Processes;
-    var dataSet = [];
-    for (var i = 0; i < processes.All.length; i++){
-        p = processes.All[i];
-        dataSet.push(
-            [p.Stat.pid,p.ProcLoad,p.MemLoad,calcUptime(p.Uptime),p.User.Real.Name,p.Stat.ppid,p.Stat.comm]
-        );
-    }
-    pTable.clear();
-    pTable.rows.add(dataSet).draw();
-    proc = null;
 }
 
 function drawNet(proc){

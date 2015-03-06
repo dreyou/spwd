@@ -52,6 +52,7 @@ var Conf Config
 type Config struct {
 	Main struct {
 		UpdateInterval time.Duration
+		SendInterval   time.Duration
 		Listen         string
 		Allow          string
 	}
@@ -60,12 +61,18 @@ type Config struct {
 		TimeToRefresh int
 		TimeToReload  int
 	}
+	Elasticsearch struct {
+		Send bool
+		Url  string
+	}
 }
 
 var defaultConf = `;Defaulf config
 [Main]
 ;Update statictics data in miliiseconds
 UpdateInterval = 5000
+;Send statictics data in miliiseconds
+SendInterval = 10000
 Listen = localhost:4000
 Allow = 127.0.0.1
 [Js]
@@ -74,6 +81,9 @@ MaxPoints = 10
 TimeToRefresh = 10
 ;Time to reload data, sec
 TimeToReload = 2
+[Elasticsearch]
+Send = false
+Url = http://localhost:9200
 `
 
 var jsConfig = `//Javascrit constants
@@ -81,6 +91,9 @@ var maxPoints = %v;
 var timeToRefresh = %v;
 var timeToReload = %v;
 `
+var senders = []Sender{}
+
+type Sender func(proc ProcAll, jsonProc []byte)
 
 func initConf() {
 	if _, err := os.Stat(*config); os.IsNotExist(err) {
@@ -119,6 +132,16 @@ func procUpdater() {
 		dataPeriod--
 	} else {
 		logger(DEBUG, func() { log.Println("Skip data") })
+	}
+}
+
+func procSender() {
+	var local ProcAll
+	local.Init()
+	time.Sleep(time.Millisecond * Conf.Main.UpdateInterval)
+	local.Update()
+	for _, send := range senders {
+		send(local, nil)
 	}
 }
 
@@ -210,6 +233,7 @@ func main() {
 	flag.Parse()
 	logger(INFO, func() { log.Println("Start") })
 	initConf()
+	senders = append(senders, elasticsearch)
 	var handlers = []HttpFile{
 		{"/jquery.min.js", "text/javascript", "jquery.min.js"},
 		{"/jquery.jqplot.min.js", "text/javascript", "jquery.jqplot.min.js"},
@@ -230,10 +254,17 @@ func main() {
 
 	synca.StoreInt32(&dataFlag, NEED_DATA)
 
-	ticker := time.NewTicker(time.Millisecond * Conf.Main.UpdateInterval)
+	updateTicker := time.NewTicker(time.Millisecond * Conf.Main.UpdateInterval)
 	go func() {
-		for _ = range ticker.C {
+		for _ = range updateTicker.C {
 			procUpdater()
+		}
+	}()
+
+	sendTicker := time.NewTicker(time.Millisecond * Conf.Main.SendInterval)
+	go func() {
+		for _ = range sendTicker.C {
+			procSender()
 		}
 	}()
 
