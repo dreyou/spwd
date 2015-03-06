@@ -261,7 +261,7 @@ func main() {
 		}
 	}()
 
-	sendTicker := time.NewTicker(time.Millisecond * Conf.Main.SendInterval)
+	sendTicker := time.NewTicker(time.Second * Conf.Main.SendInterval)
 	go func() {
 		for _ = range sendTicker.C {
 			procSender()
