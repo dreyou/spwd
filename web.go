@@ -62,8 +62,10 @@ type Config struct {
 		TimeToReload  int
 	}
 	Elasticsearch struct {
-		Send bool
-		Url  string
+		HostId        string
+		Send          bool
+		SendProcesses bool
+		Url           string
 	}
 }
 
@@ -71,8 +73,8 @@ var defaultConf = `;Defaulf config
 [Main]
 ;Update statictics data in miliiseconds
 UpdateInterval = 5000
-;Send statictics data in miliiseconds
-SendInterval = 10000
+;Send statictics data in seconds
+SendInterval = 60
 Listen = localhost:4000
 Allow = 127.0.0.1
 [Js]
@@ -82,7 +84,9 @@ TimeToRefresh = 10
 ;Time to reload data, sec
 TimeToReload = 2
 [Elasticsearch]
+HostId = default_host_id
 Send = false
+SendProcesses = false
 Url = http://localhost:9200
 `
 
@@ -93,11 +97,11 @@ var timeToReload = %v;
 `
 var senders = []Sender{}
 
-type Sender func(proc ProcAll, jsonProc []byte)
+type Sender func(proc ProcAll, sendProcesses bool)
 
 func initConf() {
 	if _, err := os.Stat(*config); os.IsNotExist(err) {
-		log.Printf("no such file or directory: %s, creatina\n", *config)
+		log.Printf("no such file or directory: %s, creating\n", *config)
 		ioutil.WriteFile(*config, []byte(defaultConf), 0644)
 	}
 	err := gcfg.ReadFileInto(&Conf, *config)
@@ -138,10 +142,11 @@ func procUpdater() {
 func procSender() {
 	var local ProcAll
 	local.Init()
+	proc.HostId = Conf.Elasticsearch.HostId
 	time.Sleep(time.Millisecond * Conf.Main.UpdateInterval)
 	local.Update()
 	for _, send := range senders {
-		send(local, nil)
+		send(local, Conf.Elasticsearch.SendProcesses)
 	}
 }
 
@@ -249,6 +254,7 @@ func main() {
 		{"/favicon.ico", "image/x-icon", "favicon.ico"},
 	}
 	proc.Init()
+	proc.HostId = Conf.Elasticsearch.HostId
 
 	dataPeriod = WAIT_DATA_PERIOD
 

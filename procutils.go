@@ -34,6 +34,7 @@ type ProcCommon interface {
 
 type ProcAll struct {
 	TimeStamp string
+	HostId    string
 	all       []ProcCommon
 	Stat      Stat
 	Misc      Misc

@@ -47,6 +47,9 @@ type Process struct {
 	ProcLoad  float32
 	MemLoad   float32
 	Uptime    int64
+	Hostname  string
+	HostId    string
+	TimeStamp string
 }
 
 type User struct {
