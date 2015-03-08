@@ -78,6 +78,8 @@ func (pr *Process) Update() {
 	pr.Statm = nil
 	pr.Statm = readProcessStatmMap(pr.Pid)
 	pr.Cmdline = readOneLine(fmt.Sprintf("%v/%v/cmdline", PROC_DIR, pr.Pid))
+	pr.ParentPid, _ = parseInt64(pr.Stat["ppid"])
+	pr.Stat["comm"] = regexp.MustCompile(`[\(\)\[\]]`).ReplaceAllString(pr.Stat["comm"], "")
 	pr.updateAuthInfo()
 	pr.live = true
 }

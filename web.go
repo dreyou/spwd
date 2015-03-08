@@ -33,6 +33,8 @@ const TRACE = 3
 
 var dataFlag int32
 
+var sendFlag int32
+
 var dataPeriod int32
 
 var proc ProcAll
@@ -66,6 +68,8 @@ type Config struct {
 		Send          bool
 		SendProcesses bool
 		Url           string
+		LoadTreshold  float32
+		MemTreshold   float32
 	}
 }
 
@@ -84,10 +88,17 @@ TimeToRefresh = 10
 ;Time to reload data, sec
 TimeToReload = 2
 [Elasticsearch]
-HostId = default_host_id
-Send = false
-SendProcesses = false
 Url = http://localhost:9200
+;Additional host id
+HostId = default_host_id
+;Send main data to elasticsearch index spwd with type proc
+Send = false
+;Send processes data to elasticsearch index spwd with type processes
+SendProcesses = false
+;Process data will be sended to elastiicsearch when process processor load (%) > LoadTreshold
+LoadTreshold = 0.1
+;or process memory usage (%) > MemTreshold
+MemTreshold = 0.1
 `
 
 var jsConfig = `//Javascrit constants
@@ -139,14 +150,19 @@ func procUpdater() {
 	}
 }
 
+var sendChan = make(chan int)
+
 func procSender() {
-	var local ProcAll
-	local.Init()
-	proc.HostId = Conf.Elasticsearch.HostId
-	time.Sleep(time.Millisecond * Conf.Main.UpdateInterval)
-	local.Update()
-	for _, send := range senders {
-		send(local, Conf.Elasticsearch.SendProcesses)
+	for {
+		<-sendChan
+		localProc := ProcAll{}
+		localProc.Init()
+		localProc.HostId = Conf.Elasticsearch.HostId
+		time.Sleep(time.Millisecond * Conf.Main.UpdateInterval)
+		localProc.Update()
+		for _, send := range senders {
+			send(localProc, Conf.Elasticsearch.SendProcesses)
+		}
 	}
 }
 
@@ -267,10 +283,12 @@ func main() {
 		}
 	}()
 
+	go procSender()
+
 	sendTicker := time.NewTicker(time.Second * Conf.Main.SendInterval)
 	go func() {
 		for _ = range sendTicker.C {
-			procSender()
+			sendChan <- 1
 		}
 	}()
 
