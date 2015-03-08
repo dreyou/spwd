@@ -20,9 +20,33 @@ type NetData struct {
 }
 
 type NetDev struct {
-	Name     string
-	Receive  NetData
-	Transmit NetData
+	Name         string
+	Receive      NetData
+	ReceiveDiff  NetData
+	Transmit     NetData
+	TransmitDiff NetData
+}
+
+func netDataDiff(od NetData, nd NetData) NetData {
+	diff := NetData{}
+	diff.Bytes = nd.Bytes - od.Bytes
+	diff.Packets = nd.Packets - od.Packets
+	diff.Errs = nd.Errs - od.Errs
+	diff.Drop = nd.Drop - od.Drop
+	diff.Fifo = nd.Fifo - od.Fifo
+	diff.Frame = nd.Frame - od.Frame
+	diff.Compressed = nd.Compressed - od.Compressed
+	diff.Multicast = nd.Multicast - od.Multicast
+	return diff
+}
+
+func getDev(name string, devs []NetDev) NetDev {
+	for _, d := range devs {
+		if d.Name == name {
+			return d
+		}
+	}
+	return NetDev{}
 }
 
 type Net struct {
@@ -35,16 +59,22 @@ func (n *Net) Init() {
 }
 
 func (n *Net) Update() {
-	n.All = readNetDevs()
+	newDevs := readNetDevs(n.All)
+	n.All = nil
+	n.All = newDevs
 }
 
-func readNetDevs() []NetDev {
+func readNetDevs(old []NetDev) []NetDev {
 	netDevs := []NetDev{}
-	devMap := readFileMap([]string{`[\w]+`}, PROC_NET_DATA, `:`)
+	devMap, _ := readFileMap([]string{`[\w]+`}, PROC_NET_DATA, `:`)
 	for key, value := range devMap {
 		vals := regexp.MustCompile(`[\s]+`).Split(strings.TrimSpace(value), -1)
 		if len(vals) >= 16 {
-			netDevs = append(netDevs, NetDev{Name: key, Receive: readNetData(vals, 0), Transmit: readNetData(vals, 8)})
+			dataReceive := readNetData(vals, 0)
+			dataReceiveDiff := netDataDiff(getDev(key, old).Receive, dataReceive)
+			dataTransmit := readNetData(vals, 8)
+			dataTransmitDiff := netDataDiff(getDev(key, old).Transmit, dataTransmit)
+			netDevs = append(netDevs, NetDev{Name: key, Receive: dataReceive, Transmit: dataTransmit, ReceiveDiff: dataReceiveDiff, TransmitDiff: dataTransmitDiff})
 		}
 	}
 	return netDevs

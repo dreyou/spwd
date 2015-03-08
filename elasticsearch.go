@@ -10,6 +10,9 @@ import (
 )
 
 func elasticsearch(inProc ProcAll, sendProcesses bool) {
+	if !Conf.Elasticsearch.Send {
+		return
+	}
 	logger(DEBUG, func() { log.Println("Send data to elasticsearch") })
 	if sendProcesses {
 		num := 0

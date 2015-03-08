@@ -127,7 +127,7 @@ func (m *Mem) Init() {
 type Stat struct {
 	Cpu        *Proc
 	Cpus       []*Proc
-	Stats      map[string]string
+	Stats      map[string]int64
 	Sc_clk_tck C.long
 	Pagesize   int
 }
@@ -151,7 +151,7 @@ func (s *Stat) Init() {
 
 func (s *Stat) Update() {
 	readStatLines(PROC_STAT, proc2proc(s.Cpus))
-	s.Stats = readFileMap(initProcStatNames(), PROC_STAT, `[: \t]+`)
+	_, s.Stats = readFileMap(initProcStatNames(), PROC_STAT, `[: \t]+`)
 	s.Sc_clk_tck = C.sysconf(C._SC_CLK_TCK)
 	s.Pagesize = os.Getpagesize()
 }
@@ -165,8 +165,9 @@ func initProcStatNames() []string {
 	return Names
 }
 
-func readFileMap(names []string, fileName string, splitMatch string) map[string]string {
+func readFileMap(names []string, fileName string, splitMatch string) (map[string]string, map[string]int64) {
 	Map := map[string]string{}
+	Map64 := map[string]int64{}
 	inFile, _ := os.Open(fileName)
 	defer inFile.Close()
 	scanner := bufio.NewScanner(inFile)
@@ -179,10 +180,13 @@ func readFileMap(names []string, fileName string, splitMatch string) map[string]
 		for _, name := range names {
 			if regexp.MustCompile(name).MatchString(strings.TrimSpace(values[0])) {
 				Map[strings.TrimSpace(values[0])] = values[1]
+				if regexp.MustCompile(`[\d\.]+`).MatchString(values[1]) {
+					Map64[strings.TrimSpace(values[0])], _ = parseInt64(values[1])
+				}
 			}
 		}
 	}
-	return Map
+	return Map, Map64
 }
 
 type ProcMatch interface {

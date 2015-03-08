@@ -78,7 +78,7 @@ function drawTable(proc){
     for (var i = 0; i < processes.All.length; i++){
         p = processes.All[i];
         dataSet.push(
-            [p.Stat.pid,p.Stat.comm,p.User.Real.Name,p.Stat.state,p.ProcLoad,p.MemLoad,calcUptime(p.Uptime),p.Stat.ppid]
+            [p.Stat.pid,p.Comm,p.User.Real.Name,p.State,p.ProcLoad,p.MemLoad,calcUptime(p.Uptime),p.Stat.ppid]
         );
     }
     pTable.clear();

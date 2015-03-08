@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	ioutil "io/ioutil"
+	"os"
 	osuser "os/user"
 	"regexp"
 	"strconv"
@@ -37,9 +38,11 @@ func (pra *Processes) Update() {
 type Process struct {
 	Pid       int64
 	ParentPid int64
+	Comm      string
+	State     string
 	Cmdline   string
-	Stat      map[string]string
-	Statm     map[string]string
+	Stat      map[string]int64
+	Statm     map[string]int64
 	Diff      map[string]int64
 	User      User
 	Group     User
@@ -68,35 +71,40 @@ func (pr *Process) Init() {
 }
 
 func (pr *Process) Update() {
-	newStat := readProcessStatMap(pr.Pid)
-	if !regexp.MustCompile("[RSDZTW]+").MatchString(newStat["state"]) {
+	if _, err := os.Stat(fmt.Sprintf("%v/%v/stat", PROC_DIR, pr.Pid)); os.IsNotExist(err) {
 		return
 	}
-	pr.Diff = calcDiffLoad(extractInts(pr.Stat), extractInts(newStat))
+	newStat := readProcessStatMap(pr.Pid)
+	tmpStat := regexp.MustCompile(`[\s]+`).Split(readOneLine(fmt.Sprintf("%v/%v/stat", PROC_DIR, pr.Pid)), -1)
+	if len(tmpStat) > 3 {
+		pr.Comm = tmpStat[1]
+		pr.State = tmpStat[2]
+	}
+	pr.Diff = calcDiffLoad(pr.Stat, newStat)
 	pr.Stat = nil
 	pr.Stat = newStat
 	pr.Statm = nil
 	pr.Statm = readProcessStatmMap(pr.Pid)
 	pr.Cmdline = readOneLine(fmt.Sprintf("%v/%v/cmdline", PROC_DIR, pr.Pid))
-	pr.ParentPid, _ = parseInt64(pr.Stat["ppid"])
-	pr.Stat["comm"] = regexp.MustCompile(`[\(\)\[\]]`).ReplaceAllString(pr.Stat["comm"], "")
+	pr.ParentPid = pr.Stat["ppid"]
+	pr.Comm = regexp.MustCompile(`[\[\]\(\)]+`).ReplaceAllString(pr.Comm, "")
 	pr.updateAuthInfo()
 	pr.live = true
 }
 
 func (pr *Process) updateLoadInfo(stat Stat, meminfo Mem, period int64) {
 	timeNow := time.Now().Unix()
-	starttime, _ := parseInt64(pr.Stat["starttime"])
-	btime, _ := parseInt64(stat.Stats["btime"])
+	starttime := pr.Stat["starttime"]
+	btime, _ := stat.Stats["btime"]
 	pr.Uptime = timeNow - (btime + starttime/int64(stat.Sc_clk_tck))
 	pr.ProcLoad = trun((float32(pr.Diff["utime"]) + float32(pr.Diff["stime"])) / float32(period))
-	rss, _ := parseInt64(pr.Stat["rss"])
+	rss := pr.Stat["rss"]
 	pr.MemLoad = trun((float32((rss * int64(stat.Pagesize))) / (float32(meminfo.Info["MemTotal"] * 10))))
 }
 
 func (pr *Process) updateAuthInfo() {
 	fileName := fmt.Sprintf("%v/%v/status", PROC_DIR, pr.Pid)
-	auths := readFileMap([]string{"Uid", "Gid"}, fileName, `:`)
+	auths, _ := readFileMap([]string{"Uid", "Gid"}, fileName, `:`)
 	for key, value := range auths {
 		auths[key] = strings.TrimSpace(value)
 	}
@@ -119,22 +127,14 @@ func (pr *Process) updateAuthInfo() {
 	pr.Group.Effective.Id, _ = strconv.Atoi(gid[1])
 }
 
-func calcDiffLoad(times []int64, ntimes []int64) map[string]int64 {
+func calcDiffLoad(times map[string]int64, ntimes map[string]int64) map[string]int64 {
 	Diff := map[string]int64{
-		"utime":  int64(ntimes[0] - times[0]),
-		"stime":  int64(ntimes[1] - times[1]),
-		"cutime": int64(ntimes[2] - times[2]),
-		"cstime": int64(ntimes[3] - times[3]),
+		"utime":  int64(ntimes["utime"] - times["utime"]),
+		"stime":  int64(ntimes["stime"] - times["stime"]),
+		"cutime": int64(ntimes["cutime"] - times["cutime"]),
+		"cstime": int64(ntimes["cstime"] - times["cstime"]),
 	}
 	return Diff
-}
-
-func extractInts(stat map[string]string) []int64 {
-	utime, _ := strconv.ParseInt(stat["utime"], 0, 64)
-	stime, _ := strconv.ParseInt(stat["stime"], 0, 64)
-	cutime, _ := strconv.ParseInt(stat["cutime"], 0, 64)
-	cstime, _ := strconv.ParseInt(stat["cstime"], 0, 64)
-	return []int64{utime, stime, cutime, cstime}
 }
 
 func readLineMap(names []string, valuesLine string) map[string]string {
@@ -149,12 +149,26 @@ func readLineMap(names []string, valuesLine string) map[string]string {
 	return Map
 }
 
-func readProcessStatMap(pid int64) map[string]string {
-	return readLineMap(initProcessStatNames(), readOneLine(fmt.Sprintf("%v/%v/stat", PROC_DIR, pid)))
+func readLineMapInt64(names []string, valuesLine string) map[string]int64 {
+	Map := map[string]int64{}
+	values := regexp.MustCompile(`[\t ]+`).Split(valuesLine, -1)
+	if len(values) != len(names) {
+		return Map
+	}
+	for i := 0; i < len(names); i++ {
+		if names[i] != "_SKIP_" {
+			Map[names[i]], _ = parseInt64(values[i])
+		}
+	}
+	return Map
 }
 
-func readProcessStatmMap(pid int64) map[string]string {
-	return readLineMap(initProcessStatmNames(), readOneLine(fmt.Sprintf("%v/%v/statm", PROC_DIR, pid)))
+func readProcessStatMap(pid int64) map[string]int64 {
+	return readLineMapInt64(initProcessStatNames(), readOneLine(fmt.Sprintf("%v/%v/stat", PROC_DIR, pid)))
+}
+
+func readProcessStatmMap(pid int64) map[string]int64 {
+	return readLineMapInt64(initProcessStatmNames(), readOneLine(fmt.Sprintf("%v/%v/statm", PROC_DIR, pid)))
 }
 
 func initProcessStatmNames() []string {
@@ -173,8 +187,8 @@ func initProcessStatmNames() []string {
 func initProcessStatNames() []string {
 	Names := []string{
 		"pid",
-		"comm",
-		"state",
+		"_SKIP_",
+		"_SKIP_",
 		"ppid",
 		"pgrp",
 		"session",

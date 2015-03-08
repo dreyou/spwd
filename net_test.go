@@ -14,7 +14,7 @@ func TestReadNet(t *testing.T) {
 }
 
 func TestReadNetDevs(t *testing.T) {
-	devs := readNetDevs()
+	devs := readNetDevs([]NetDev{})
 	if len(devs) < 1 {
 		t.Error("No net devices!")
 	}

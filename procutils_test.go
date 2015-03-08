@@ -71,8 +71,8 @@ func TestProcAll(t *testing.T) {
 	if all.Stat.Cpus[0].Load.All == 0 {
 		t.Error("Cpu Load must not be 0!")
 	}
-	if len(all.Stat.Stats["btime"]) == 0 {
-		t.Error("btime must not be empty!")
+	if all.Stat.Stats["btime"] == 0 {
+		t.Error("btime must not be zero")
 	}
 	if len(all.Meminfo.Info) < 1 {
 		t.Error("Memory info must contain at least one string!")
