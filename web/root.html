@@ -10,16 +10,17 @@
 </head>
 <body style="font-family:Sans;font-size:small">
 
-<div> 
+<div style="border-bottom-style:solid;border-bottom-width:2px;padding-bottom:2px"> 
   <div id="hostname" style="float:left">Hostname:</div>
   <div id="uptime" style="float:left">Uptime:</div>
   <div id="avg"> Avg:</div>
 </div>
-<div>
-  <div id="loadchart" style="width:25%;float:left"></div>
-  <div id="memchart" style="width:25%;float:left"></div>
-  <div id="fschart" style="width:25%;float:left;"></div>
-  <div id="netchart" style="width:25%;float:left;"></div>
+<div style="margin-top:6px">
+  <div id="loadchart"></div>
+  <div id="memchart"></div>
+  <div id="fschart"></div>
+  <div id="iochart"></div>
+  <div id="netchart"></div>
 </div>
 
 <div id="ptable"><table cellpadding="0" cellspacing="0" border="0" class="display compact" id="processes"></table></div>
@@ -49,6 +50,7 @@ var cpuPlot1 = null;
 var memPlot0 = null;
 var fsPlot0 = null;
 var netPlot0 = null;
+var ioPlot0 = null;
 
 var sTime = new Date().getTime();
 var dTime = new Date().getTime();
@@ -56,7 +58,7 @@ var cpuLoad = [];
 
 var pTable = $('#processes').DataTable({
             "lengthMenu": [ [25, 50, -1], [25, 50, "All"] ],
-            "order": [[ 1, "desc" ]],
+            "order": [[ 4, "desc" ]],
             "createdRow": function( row, data, dataIndex ) {
                  $(row).on('click',function(e){onRowClick(data[0])});
             },
@@ -107,6 +109,57 @@ function updateCpuLoad(j,stats){
     return maxValue;
 }
 
+function drawIo(proc){
+
+    if(ioPlot0 != null){
+       ioPlot0.destroy();
+       ioPlot0 = null;
+    }
+
+    var maxValue = proc.DiskStats.Total.ReadsCompleted+proc.DiskStats.Total.WritesCompleted;
+ 
+    $( "#iochart" ).replaceWith('<div id="iochart" style="width:5%;float:left;"></div>');
+
+    netPlot0 = $.jqplot('iochart', [[proc.DiskStats.Total.ReadsCompleted],[proc.DiskStats.Total.WritesCompleted]],
+        {
+            title: "io",
+            stackSeries: true,
+            seriesDefaults:{
+                renderer: $.jqplot.BarRenderer,
+                rendererOptions: {
+                    fillToZero: true,
+                    barDirection: 'vertical'
+                },
+            },
+            seriesColors: ["#666600","#008080"],
+            series: [{label:"R",pointLabels:{}},{label:"W",pointLabels:{}}],
+            legend: {
+                show: true,
+                location: 'n',
+                placement: 'inside'
+            },
+            axesDefaults: {
+                tickOptions: {
+                    showLabel: false,
+                    showMark: false,
+                    show: false,
+                },
+                showTicks: false,
+                showTickMarks: false,
+            },
+            axes: {
+                xaxis: {
+                    renderer: $.jqplot.CategoryAxisRenderer,
+                    ticks: [null,null],
+                },
+                yaxis: {
+                    max: maxValue,
+                }
+            }
+        }
+    );
+    proc = null
+}
 function drawNet(proc){
     var all = proc.Net.All.sort(function(a,b){return b.Name.localeCompare(a.Name);});
     var netR = [];
@@ -139,6 +192,7 @@ function drawNet(proc){
 
     netPlot0 = $.jqplot('netchart', [net100,netR,netT,netE],
         {
+            title: "net",
             stackSeries: true,
             seriesDefaults:{
                 renderer: $.jqplot.BarRenderer,
@@ -205,6 +259,7 @@ function drawSize(proc){
 
     fsPlot0 = $.jqplot('fschart', [fsData100,fsDataUsed,fsDataAvail],
         {
+            title: "fs",
             stackSeries: true,
             seriesDefaults:{
                 renderer: $.jqplot.BarRenderer,
@@ -300,6 +355,7 @@ function drawLoad(proc){
 
     cpuPlot0 = $.jqplot('loadchart', [procData100,procDataUser,procDataNice,procDataSystem,procDataIdle],
         {
+            title: "cpu",
             stackSeries: true,
             seriesDefaults:{
                 renderer: $.jqplot.BarRenderer,
@@ -340,6 +396,7 @@ function drawLoad(proc){
 
     cpuPlot1 = $.jqplot('loadchart', cpuLoad,
         {
+            title: "cpu",
             axes:{
                 yaxis:{
                     min:0,
@@ -394,10 +451,11 @@ function drawMem(proc){
        memPlot0 = null;
     }
 
-    $( "#memchart" ).replaceWith('<div id="memchart" style="width:25%;float:left;"></div>');
+    $( "#memchart" ).replaceWith('<div id="memchart" style="width:20%;float:left;"></div>');
 
     memPlot0 = $.jqplot('memchart', [memData,swapData],
         {
+            title: "mem",
             seriesDefaults:{
                 renderer: jQuery.jqplot.DonutRenderer,
                 rendererOptions: {
@@ -446,6 +504,7 @@ function updateData(){
         drawSize(proc);
         drawTable(proc);
         drawNet(proc);
+        drawIo(proc);
 
         proc = null;
 
