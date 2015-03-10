@@ -19,12 +19,9 @@ func TestPidListAndProcessStatsRead(t *testing.T) {
 	if stats["pid"] <= 0 {
 		t.Error("invalid pid !")
 	}
-	fmt.Printf("Process pid: %v, name: %v\n", stats["pid"])
+	fmt.Printf("Process pid: %v\n", stats["pid"])
 	statsm := readProcessStatmMap(pid)
 	if len(statsm) < 1 {
 		t.Error("Empty statsm (memory) map!")
-	}
-	if statsm["size"] <= 0 {
-		t.Error("memory size is not valid!")
 	}
 }

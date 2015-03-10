@@ -98,4 +98,7 @@ func TestProcAll(t *testing.T) {
 	if len(all.Net.All) < 1 {
 		t.Error("Empty net dev list!")
 	}
+	if len(all.DiskStats.All) < 1 {
+		t.Error("Empty disk io list!")
+	}
 }

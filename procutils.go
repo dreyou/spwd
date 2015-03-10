@@ -44,6 +44,7 @@ type ProcAll struct {
 	Processes Processes
 	AllFs     AllFs
 	Net       Net
+	DiskStats DiskStats
 }
 
 func (pa *ProcAll) Init() {
@@ -56,6 +57,7 @@ func (pa *ProcAll) Init() {
 		&pa.AllFs,
 		&pa.Net,
 		&pa.Misc,
+		&pa.DiskStats,
 	}
 	for _, a := range pa.all {
 		a.Init()
@@ -236,6 +238,11 @@ type Match struct {
 
 func parseInt64(in string) (i int64, err error) {
 	return strconv.ParseInt(strings.TrimSpace(in), 0, 64)
+}
+
+func parseInt64_(in string) int64 {
+	res, _ := parseInt64(in)
+	return res
 }
 
 func (p *Proc) update(line string) {
