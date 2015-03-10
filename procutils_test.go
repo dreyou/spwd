@@ -2,9 +2,18 @@ package main
 
 import (
 	"fmt"
+	"regexp"
 	"testing"
 	"time"
 )
+
+func TestSysVersionRegexp(t *testing.T) {
+	verString := "2.6.234-wer.wer"
+	verValue := regexp.MustCompile(`^(\d+)\.(\d+)[^\d].*$`).ReplaceAllString(verString, "$1$2")
+	if verValue != "26" {
+		t.Error("Vrong version detection!")
+	}
+}
 
 func TestSysKernel(t *testing.T) {
 	kernel := new(Kernel)

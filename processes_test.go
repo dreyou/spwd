@@ -11,7 +11,7 @@ func TestPidListAndProcessStatsRead(t *testing.T) {
 	if len(procs.All) < 1 {
 		t.Error("Empty process List!")
 	}
-	pid := procs.All[15].Pid
+	pid := procs.All[len(procs.All)-2].Pid
 	stats := readProcessStatMap(pid)
 	if len(stats) < 1 {
 		t.Error("Empty stats map!")

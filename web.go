@@ -17,6 +17,8 @@ import (
 
 import gcfg "code.google.com/p/gcfg"
 
+const KERNEL_VERSION = 26
+
 const NEED_DATA int32 = 1
 
 const NO_DATA = 0
@@ -251,6 +253,9 @@ func notAllow(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func main() {
+	if !checkVersion(KERNEL_VERSION) {
+		log.Fatal("Invalid kernel version!")
+	}
 	flag.Parse()
 	logger(INFO, func() { log.Println("Start") })
 	initConf()

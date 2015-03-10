@@ -26,6 +26,7 @@ const PROC_MEMNFO = "/proc/meminfo"
 const PROC_AVG = "/proc/loadavg"
 const PROC_UPTIME = "/proc/uptime"
 const PROC_SYS_KERNEL_HOSTNAME = "/proc/sys/kernel/hostname"
+const PROC_SYS_KERNEL_OS = "/proc/sys/kernel/osrelease"
 
 type ProcCommon interface {
 	Init()
@@ -265,6 +266,16 @@ func (p *Proc) calcLoad(stat ProcStat, nstat ProcStat) ProcLoad {
 		div = float32((dIdle + dNice + dSystem + dUser) / 100)
 	}
 	return ProcLoad{trun(dUser / div), trun(dNice / div), trun(dSystem / div), trun(dIdle / div), trun((dUser + dNice + dSystem) / div), div}
+}
+
+func checkVersion(version int64) bool {
+	verString := readOneLine(PROC_SYS_KERNEL_OS)
+	verValue := regexp.MustCompile(`^(\d+)\.(\d+)[^\d].*$`).ReplaceAllString(verString, "$1$2")
+	verInt, _ := parseInt64(verValue)
+	if verInt >= version {
+		return true
+	}
+	return false
 }
 
 func trun(in float32) float32 {
