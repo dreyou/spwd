@@ -8,10 +8,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"regexp"
 	"strings"
 	"sync"
 	synca "sync/atomic"
+	"syscall"
 	"time"
 )
 
@@ -50,6 +52,8 @@ var webRoot = flag.String("webroot", "./web/", "Path to web root directory")
 var level = flag.Int("level", 2, "Log level (0 -ERROR, 1 - INFO, 2 - DEBUG)")
 
 var config = flag.String("config", "./spwd.gcfg", "Config file")
+
+var pidFile = flag.String("pid", "/tmp/spwd.pid", "Pid file")
 
 var Conf Config
 
@@ -118,6 +122,24 @@ func initConf() {
 		ioutil.WriteFile(*config, []byte(defaultConf), 0644)
 	}
 	err := gcfg.ReadFileInto(&Conf, *config)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func removePid() {
+	if _, err := os.Stat(*pidFile); os.IsNotExist(err) {
+		log.Printf("no such file or directory: %s\n", *pidFile)
+		return
+	}
+	err := os.Remove(*pidFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func writePid(pid int) {
+	err := ioutil.WriteFile(*pidFile, []byte(fmt.Sprintf("%v", pid)), 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -257,6 +279,7 @@ func main() {
 		log.Fatal("Invalid kernel version!")
 	}
 	flag.Parse()
+	writePid(os.Getpid())
 	logger(INFO, func() { log.Println("Start") })
 	initConf()
 	senders = append(senders, elasticsearch)
@@ -295,6 +318,15 @@ func main() {
 		for _ = range sendTicker.C {
 			sendChan <- 1
 		}
+	}()
+
+	signalChannel := make(chan os.Signal, 2)
+	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGINT)
+	go func() {
+		sig := <-signalChannel
+		logger(INFO, func() { log.Printf("Exitting by signal %v\n", sig) })
+		removePid()
+		os.Exit(0)
 	}()
 
 	http.HandleFunc("/proc", fileProc)
