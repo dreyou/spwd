@@ -41,6 +41,7 @@ rm -rf %{buildroot}
 mkdir -p %{buildroot}%{spwd_path}
 mkdir -p %{buildroot}%{spwd_web_path}
 cp ./spwd %{buildroot}%{spwd_path}
+cp packaging/spwd.gcfg.sample %{buildroot}%{spwd_path}/spwd.gcfg
 cp -R ./web/* %{buildroot}%{spwd_web_path}
 
 %if 0%{?rhel}

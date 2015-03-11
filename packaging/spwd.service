@@ -19,9 +19,13 @@ SPWD_PID="/var/run/spwd/spwd.pid"
 
 SPWD_RUN="/opt/spwd/spwd"
 
-SPWD_WEB="/opt/spwd/web"
+SPWD_WEB="/opt/spwd/web/"
 
 SPWD_USER='spwd'
+
+if ! getent passwd $SPWD_USER > /dev/null 2>&1; then
+   SPWD_USER=root
+fi
 
 prog='spwd'
 
@@ -41,7 +45,7 @@ start() {
   mkdir -p $(dirname $SPWD_LOG)
   cat /dev/null > $SPWD_LOG
   mkdir -p $(dirname $SPWD_PID)
-  su - $SPWD_USER -c "nohup $SPWD_RUN -config=$SPWD_CONF -pid=$SPWD_PID -web=$SPWD_WEB >> $SPWD_LOG&"
+  su - $SPWD_USER -c "nohup $SPWD_RUN -level=1 -config=$SPWD_CONF -pid=$SPWD_PID -webroot=$SPWD_WEB >> $SPWD_LOG&"
 
   count=0
   launched=false

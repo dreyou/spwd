@@ -205,7 +205,7 @@ func (hf HttpFile) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	} else {
 		fileName = strings.Replace(req, "/", "", 1)
 	}
-	fileName = *webRoot + fileName
+	fileName = *webRoot + "/" + fileName
 	logger(DEBUG, func() { log.Println("Using file: " + fileName) })
 	file, _ := ioutil.ReadFile(fileName)
 	w.Write(file)
@@ -243,12 +243,12 @@ func fileRoot(w http.ResponseWriter, r *http.Request) {
 	logger(DEBUG, func() { log.Println("Servig http requesti for root: " + req) })
 	if req == "/favicon.ico" {
 		logger(DEBUG, func() { log.Println("Returning favicon.ico") })
-		fileIco, _ := ioutil.ReadFile(*webRoot + "favicon.ico")
+		fileIco, _ := ioutil.ReadFile(*webRoot + "/" + "favicon.ico")
 		w.Write(fileIco)
 		return
 	} else {
 		logger(DEBUG, func() { log.Println("Returning root.html") })
-		file, _ := ioutil.ReadFile(*webRoot + "root.html")
+		file, _ := ioutil.ReadFile(*webRoot + "/" + "root.html")
 		w.Write(file)
 	}
 }
