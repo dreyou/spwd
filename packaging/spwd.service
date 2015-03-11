@@ -1,0 +1,126 @@
+#!/bin/sh
+#
+# Spwd standalone control script
+#
+# chkconfig: - 80 20
+# description: Spwd daemon
+# processname: spwd
+# pidfile: /var/run/spwd/spwd.pid
+# config: /opt/spwd/spwd.gcfg
+
+# Source function library.
+. /etc/init.d/functions
+
+SPWD_LOG="/opt/spwd/spwd.log"
+
+SPWD_CONF="/opt/spwd/spwd.gcfg"
+
+SPWD_PID="/var/run/spwd/spwd.pid"
+
+SPWD_RUN="/opt/spwd/spwd"
+
+SPWD_WEB="/opt/spwd/web"
+
+SPWD_USER='spwd'
+
+prog='spwd'
+
+start() {
+  echo -n "Starting $prog: "
+  if [ -f $SPWD_PID ]; then
+    read ppid < $SPWD_PID
+    if [ `ps --pid $ppid 2> /dev/null | grep -c $ppid 2> /dev/null` -eq '1' ]; then
+      echo -n "$prog is already running"
+      failure
+      echo
+      return 1
+    else
+      rm -f $SPWD_PID
+    fi
+  fi
+  mkdir -p $(dirname $SPWD_LOG)
+  cat /dev/null > $SPWD_LOG
+  mkdir -p $(dirname $SPWD_PID)
+  su - $SPWD_USER -c "nohup $SPWD_RUN -config=$SPWD_CONF -pid=$SPWD_PID -web=$SPWD_WEB >> $SPWD_LOG&"
+
+  count=0
+  launched=false
+
+  until [ $count -gt 5 ]
+  do
+    grep 'Start' $SPWD_LOG > /dev/null
+    if [ $? -eq 0 ] ; then
+      launched=true
+      break
+    fi
+    sleep 1
+    let count=$count+1;
+  done
+
+  success
+  echo
+  return 0
+}
+
+stop() {
+  echo -n $"Stopping $prog: "
+  count=0;
+
+  if [ -f $SPWD_PID ]; then
+    read kpid < $SPWD_PID
+    let kwait=10
+
+    # Try issuing SIGTERM
+
+    kill -15 $kpid
+    until [ `ps --pid $kpid 2> /dev/null | grep -c $kpid 2> /dev/null` -eq '0' ] || [ $count -gt $kwait ]
+    do
+      sleep 1
+      let count=$count+1;
+    done
+
+    if [ $count -gt $kwait ]; then
+      kill -9 $kpid
+    fi
+  fi
+  rm -f $SWPD_PID
+  success
+  echo
+}
+
+status() {
+  if [ -f $SPWD_PID ]; then
+    read ppid < $SPWD_PID
+    if [ `ps --pid $ppid 2> /dev/null | grep -c $ppid 2> /dev/null` -eq '1' ]; then
+      echo "$prog is running (pid $ppid)"
+      return 0
+    else
+      echo "$prog dead but pid file exists"
+      return 1
+    fi
+  fi
+  echo "$prog is not running"
+  return 3
+}
+
+case "$1" in
+  start)
+      start
+      ;;
+  stop)
+      stop
+      ;;
+  restart)
+      $0 stop
+      sleep 2
+      $0 start
+      ;;
+  status)
+      status
+      ;;
+  *)
+      ## If no parameters are given, print which are avaiable.
+      echo "Usage: $0 {start|stop|status|restart|reload}"
+      exit 1
+      ;;
+esac
