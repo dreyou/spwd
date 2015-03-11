@@ -315,7 +315,7 @@ function drawLoad(proc){
 
     var maxValue = 0;
 
-    for(var i=0;i<5;i++){
+    for(var i=0;i<proc.Stat.Cpus.length;i++){
         var tMax = updateCpuLoad(i,stats);
         if( tMax > maxValue){
             maxValue = tMax;

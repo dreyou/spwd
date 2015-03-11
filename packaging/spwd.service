@@ -45,7 +45,14 @@ start() {
   mkdir -p $(dirname $SPWD_LOG)
   cat /dev/null > $SPWD_LOG
   mkdir -p $(dirname $SPWD_PID)
-  su - $SPWD_USER -c "nohup $SPWD_RUN -level=1 -config=$SPWD_CONF -pid=$SPWD_PID -webroot=$SPWD_WEB >> $SPWD_LOG&"
+
+  if [ ! -z "$SPWD_USER" ]; then
+    if [ -r /etc/rc.d/init.d/functions ]; then
+      daemon --user $SPWD_USER $SPWD_RUN -level=1 -config=$SPWD_CONF -pid=$SPWD_PID -webroot=$SPWD_WEB 2>>$SPWD_LOG 1>> $SPWD_LOG&
+    else
+      su - $SPWD_USER -c "nohup $SPWD_RUN -level=1 -config=$SPWD_CONF -pid=$SPWD_PID -webroot=$SPWD_WEB >> $SPWD_LOG&"
+    fi
+  fi
 
   count=0
   launched=false

@@ -1,5 +1,6 @@
 %global spwd_path /opt/spwd
 %global spwd_web_path /opt/spwd/web
+%global spwd_pid_path /var/run/spwd
 
 %global spwd_user spwd
 %global spwd_group spwd
@@ -19,7 +20,7 @@ BuildRequires:  gcc
 BuildRequires:	golang >= 1.3.3
 BuildRequires:	golang-src >= 1.3.3
 
-Requires:	top
+Requires:	procps
 
 %description
 Sample golang /proc filesystem parser. 
@@ -54,8 +55,10 @@ rm -rf %{buildroot}
 
 %pre
 /usr/bin/getent passwd %{spwd_user} >/dev/null || \
-    /usr/sbin/useradd -r -u %{spwd_user} -g %{spwd_group} -d %{spwd_path}/ \
+    /usr/sbin/useradd -r -U -d %{spwd_path} \
         -s /sbin/nologin -c "Sample /proc to web daemon" %{spwd_user}
+mkdir -p %{spwd_pid_path}
+chown %{spwd_user}:%{spwd_group} %{spwd_pid_path}
 
 %post
 %if 0%{?rhel}
@@ -71,6 +74,8 @@ fi
 %endif
 
 %postun
+rm -f %{spwd_pid_path}/*
+rmdir %{spwd_pid_path}
 /usr/sbin/userdel %{spwd_user}
 
 %files
