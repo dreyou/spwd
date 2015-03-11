@@ -1,0 +1,26 @@
+;Defaulf config
+[Main]
+;Update statictics data in miliiseconds
+UpdateInterval = 5000
+;Send statictics data in seconds
+SendInterval = 60
+Listen = localhost:4000
+Allow = 127.0.0.1
+[Js]
+MaxPoints = 10
+;Time to refresh page, min
+TimeToRefresh = 10
+;Time to reload data, sec
+TimeToReload = 2
+[Elasticsearch]
+Url = http://localhost:9200
+;Additional host id
+HostId = default_host_id
+;Send main data to elasticsearch index spwd with type proc
+Send = false
+;Send processes data to elasticsearch index spwd with type processes
+SendProcesses = false
+;Process data will be sended to elastiicsearch when process processor load (%) > LoadTreshold
+LoadTreshold = 0.1
+;or process memory usage (%) > MemTreshold
+MemTreshold = 0.1
