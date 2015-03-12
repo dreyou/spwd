@@ -7,7 +7,7 @@ SendInterval = 60
 Listen = localhost:4000
 Allow = 127.0.0.1
 [Js]
-MaxPoints = 10
+MaxPoints = 50
 ;Time to refresh page, min
 TimeToRefresh = 10
 ;Time to reload data, sec

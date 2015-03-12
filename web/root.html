@@ -25,6 +25,14 @@
 
 <div id="ptable"><table cellpadding="0" cellspacing="0" border="0" class="display compact" id="processes"></table></div>
 
+<div id="iodialog" title="IO Data Reads/Writes">
+  <div id="iodialogchart">Reading</div>
+</div>
+
+<div id="procdialog" title="Process data">
+  <div id="procdialog_data">Reading</div>
+</div>
+
 <script type="text/javascript" src="jquery.min.js"></script>
 <script type="text/javascript" src="jquery-ui.min.js"></script>
 <script type="text/javascript" src="jquery.jqplot.min.js"></script>
@@ -50,10 +58,18 @@ var memPlot0 = null;
 var fsPlot0 = null;
 var netPlot0 = null;
 var ioPlot0 = null;
+var ioDialogPlot0 = null;
+
+var procPid = 0;
 
 var sTime = new Date().getTime();
 var dTime = new Date().getTime();
 var cpuLoad = [];
+
+$( "#iodialog" ).dialog()
+$( "#iodialog" ).dialog("close")
+$( "#procdialog" ).dialog()
+$( "#procdialog" ).dialog("close")
 
 var pTable = $('#processes').DataTable({
             "lengthMenu": [ [25, 50, -1], [25, 50, "All"] ],
@@ -90,9 +106,53 @@ function drawTable(proc){
 function onRowClick(pid){
     var cTime = new Date().getTime();
     if((cTime-dTime)<500){
-    	alert(pid);
+        procPid = pid;
+        $( "#procdialog" ).dialog();
+        $( "#procdialog" ).on( "dialogclose", function( event, ui ) {procPid = 0} );
     }
     dTime = cTime;
+}
+
+function getProc(proc,pid){
+    var processes = proc.Processes;
+    for (var i = 0; i < processes.All.length; i++){
+        if( processes.All[i].Pid == pid){
+            return processes.All[i];
+	}
+    }
+    return null;
+}
+
+function drawProcessDialog(proc){
+    $( "#procdialog_data" ).replaceWith('<div id="procdialog_data"></div>');
+
+    if( ! $( "#procdialog" ).dialog("isOpen") || procPid == 0){
+        return;
+    }
+
+    var p = getProc(proc,procPid);
+
+    if( p == null ){
+        $( "#procdialog" ).dialog("close");
+        return;
+    }
+
+    $( "#procdialog" ).dialog( "option", "height", "auto" );
+    $( "#procdialog" ).dialog( "option", "width", "50%" );
+
+    $( "#procdialog_data" ).replaceWith('<div id="procdialog_data" style="font-size:90%"/>');
+
+    $( "#procdialog_data" ).append('<div style="margin-right:5px;float:left"><strong>pid: </strong>'+p.Pid+'</div>');
+    $( "#procdialog_data" ).append('<div style="margin-right:5px;float:left"><strong>comm: </strong>'+p.Comm+'</div>');
+    $( "#procdialog_data" ).append('<div style="margin-right:5px;float:left"><strong>cpu%: </strong>'+p.ProcLoad+'</div>');
+    $( "#procdialog_data" ).append('<div style="margin-right:5px;float:left"><strong>mem%: </strong>'+p.MemLoad+'</div>');
+    $( "#procdialog_data" ).append('<div style="margin-right:5px;float:left"><strong>user: </strong>'+p.User.Real.Name+'</div>');
+    $( "#procdialog_data" ).append('<div style="margin-right:5px;float:left;"><strong>threads: </strong>'+p.Stat.num_threads+'</div>');
+    $( "#procdialog_data" ).append('<div style="margin-right:5px;float:left;clear:left"><strong>size: </strong>'+p.Statm.size+'kB</div>');
+    $( "#procdialog_data" ).append('<div style="margin-right:5px;float:left"><strong>resident: </strong>'+p.Statm.resident+'kB</div>');
+    $( "#procdialog_data" ).append('<div style="margin-right:5px;float:left"><strong>shared pages: </strong>'+p.Statm.share+'</div>');
+    $( "#procdialog_data" ).append('<div style="clear:both"><strong>cmdline: </strong>'+p.Cmdline+'</div>');
+
 }
 
 function updateCpuLoad(j,stats){
@@ -108,6 +168,116 @@ function updateCpuLoad(j,stats){
     return maxValue;
 }
 
+function drawIoDialogChart(proc){
+
+    if(ioDialogPlot0 != null){
+       ioDialogPlot0.destroy();
+       ioDialogPlot0 = null;
+    }
+
+    if( ! $( "#iodialog" ).dialog("isOpen") ){
+        return;
+    }
+    var all = proc.DiskStats.All.sort(function(a,b){return b.Name.localeCompare(a.Name);});
+    var diskR = [];
+    var diskDR = [];
+    var diskW = [];
+    var diskDW = [];
+    var disk100 = [];
+    var diskLabels = [];
+    var diskNull = [];
+
+    for(var i=0;i<all.length;i++){
+        var R = Math.log(all[i].Stat.ReadsCompleted+1);
+        var DR = Math.log(all[i].Diff.ReadsCompleted+1);
+        var W = Math.log(all[i].Stat.WritesCompleted+1);
+        var DW = Math.log(all[i].Diff.WritesCompleted+1);
+        diskLabels.push(all[i].Name+" - Rd: "+all[i].Stat.ReadsCompleted+
+                                    ", dRd: "+all[i].Diff.ReadsCompleted+
+                                    ", SRd: "+all[i].Stat.SectorsRead+
+                                   ", dSRd: "+all[i].Diff.SectorsRead+
+                                     ", Wr: "+all[i].Stat.WritesCompleted+
+                                    ", dWr: "+all[i].Diff.WritesCompleted+
+                                    ", SWr: "+all[i].Stat.SectorsWritten+
+                                   ", dSWr: "+all[i].Diff.SectorsWritten
+                       );
+        diskNull.push(null);
+        disk100.push(0);
+        diskR.push(R);
+        diskDR.push(DR);
+        diskW.push(W);
+        diskDW.push(DW);
+    }
+
+    var R = Math.log(proc.DiskStats.Total.ReadsCompleted+1);
+    var DR = Math.log(proc.DiskStats.TotalDiff.ReadsCompleted+1);
+    var W = Math.log(proc.DiskStats.Total.WritesCompleted+1);
+    var DW = Math.log(proc.DiskStats.TotalDiff.WritesCompleted+1);
+    diskLabels.push("Total -  Rd: "+proc.DiskStats.Total.ReadsCompleted+
+                          ", dRd: "+proc.DiskStats.TotalDiff.ReadsCompleted+
+                          ", SRd: "+proc.DiskStats.Total.SectorsRead+
+                         ", dSRd: "+proc.DiskStats.TotalDiff.SectorsRead+
+                           ", Wr: "+proc.DiskStats.Total.WritesCompleted+
+                          ", dWr: "+proc.DiskStats.TotalDiff.WritesCompleted+
+                         ",  SWr: "+proc.DiskStats.Total.SectorsWritten+
+                         ", dSWr: "+proc.DiskStats.TotalDiff.SectorsWritten
+                   );
+    diskNull.push(null);
+    disk100.push(0);
+    diskR.push(R);
+    diskDR.push(DR);
+    diskW.push(W);
+    diskDW.push(DW);
+
+
+    $( "#iodialog" ).dialog( "option", "height", diskR.length*40 );    
+    $( "#iodialog" ).dialog( "option", "width", "80%" );    
+
+    $( "#iodialogchart" ).replaceWith('<div id="iodialogchart" style="width:100%;height:100%"></div>');
+
+    ioDialogPlot0 = $.jqplot('iodialogchart', [disk100,diskR,diskDR,diskW,diskDW],
+        {
+            stackSeries: true,
+            seriesDefaults:{
+                renderer: $.jqplot.BarRenderer,
+                rendererOptions: {
+                    fillToZero: true,
+                    barDirection: 'horizontal'
+                },
+            },
+            seriesColors: ["#ffffff", "#99FF66", "#CCFF99", "#FFCC99", "#FFFF99"],
+            series: [{label:"_",show:false,pointLabels:{show:true,labels:diskLabels,stackedValue: true}},{label:"ln(Reads)",pointLabels:{}},{label:"ln(ReadsDiff)",pointLabels:{}},{label:"ln(Writes)",pointLabels:{}},{label:"ln(WritesDiff)",pointLabels:{}}],
+            legend: {
+                show: true,
+                placement: 'inside'
+            },
+            axesDefaults: {
+                tickOptions: {
+                    showLabel: false,
+                    showMark: false,
+                    show: false,
+                },
+                showTicks: false,
+                showTickMarks: false,
+            },
+            axes: {
+                yaxis: {
+                    renderer: $.jqplot.CategoryAxisRenderer,
+                    ticks: diskNull,
+                },
+                xaxis: {
+                }
+            }
+        }
+    );
+    proc = null
+}
+
+function openIoDialog(proc){
+    $( "#iodialog" ).dialog();
+    $( "#iodialog" ).on( "dialogclose", function( event, ui ) {} );
+}
+
 function drawIo(proc){
 
     if(ioPlot0 != null){
@@ -115,11 +285,11 @@ function drawIo(proc){
        ioPlot0 = null;
     }
 
-    var maxValue = proc.DiskStats.Total.ReadsCompleted+proc.DiskStats.Total.WritesCompleted;
+    var maxValue = Math.log(proc.DiskStats.Total.ReadsCompleted+1)+Math.log(proc.DiskStats.Total.WritesCompleted+1)+Math.log(proc.DiskStats.TotalDiff.ReadsCompleted+1)+Math.log(proc.DiskStats.TotalDiff.WritesCompleted+1);
+
  
     $( "#iochart" ).replaceWith('<div id="iochart" style="width:5%;float:left;"></div>');
-
-    netPlot0 = $.jqplot('iochart', [[proc.DiskStats.Total.ReadsCompleted],[proc.DiskStats.Total.WritesCompleted]],
+    netPlot0 = $.jqplot('iochart', [[Math.log(proc.DiskStats.Total.ReadsCompleted+1)],[Math.log(proc.DiskStats.TotalDiff.ReadsCompleted+1)],[Math.log(proc.DiskStats.Total.WritesCompleted+1)],[Math.log(proc.DiskStats.TotalDiff.WritesCompleted+1)]],
         {
             title: "io",
             stackSeries: true,
@@ -130,8 +300,8 @@ function drawIo(proc){
                     barDirection: 'vertical'
                 },
             },
-            seriesColors: ["#666600","#008080"],
-            series: [{label:"R",pointLabels:{}},{label:"W",pointLabels:{}}],
+            seriesColors: ["#99FF66","#CCFF99", "#FFCC99", "#FFFF99"],
+            series: [{label:"R",pointLabels:{}},{label:"dR",pointLabels:{}},{label:"W",pointLabels:{}},{label:"dW",pointLabels:{}}],
             legend: {
                 show: true,
                 location: 'n',
@@ -153,12 +323,19 @@ function drawIo(proc){
                 },
                 yaxis: {
                     max: maxValue,
+                    min: 0,
                 }
             }
         }
     );
+    $('#iochart').bind('jqplotDataClick', 
+        function (ev, seriesIndex, pointIndex, data) {
+          openIoDialog(proc);
+        }
+    ); 
     proc = null
 }
+
 function drawNet(proc){
     var all = proc.Net.All.sort(function(a,b){return b.Name.localeCompare(a.Name);});
     var netR = [];
@@ -504,6 +681,9 @@ function updateData(){
         drawTable(proc);
         drawNet(proc);
         drawIo(proc);
+
+        drawIoDialogChart(proc);
+        drawProcessDialog(proc);
 
         proc = null;
 
