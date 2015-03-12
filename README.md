@@ -10,6 +10,8 @@ Web part written in javascript and based on:
 
 jQuery -  https://jquery.org/
 
+jQuery UI - http://jqueryui.com/
+
 jqPlot - http://www.jqplot.com/
 
 DataTables - http://www.datatables.net/
