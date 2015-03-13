@@ -3,7 +3,7 @@ VER=$1
 TGT=$2
 if [ ! $VER ]
 then
-  echo Version number not difined
+  echo Version number not defined
   exit 1
 fi
 if [ ! $TGT ]
