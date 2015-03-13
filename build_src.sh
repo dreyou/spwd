@@ -14,3 +14,4 @@ rm -rf /tmp/spwd-$VER
 cp -R . /tmp/spwd-$VER
 cd /tmp
 tar -czf $TGT/spwd-$VER.tar.gz spwd-$VER
+rm -rf /tmp/spwd-$VER
