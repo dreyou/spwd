@@ -8,9 +8,9 @@ then
 fi
 if [ ! $RPMBUILD ]
 then
-  RPMBUILDDIR=/tmp/rpmbuild
+  RPMBUILD=/tmp/rpmbuild
 fi
 rm -Rf $RPMBUILD
 mkdir -p $RPMBUILD/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
 ./build_src.sh $VER $RPMBUILD/SOURCES
-rpmbuild --define "_topdir $RPMBUILDDIR" --define="spwd_version $VER" -ba ./packaging/spwd.spec
+rpmbuild --define "_topdir $RPMBUILD" --define="spwd_version $VER" -ba ./packaging/spwd.spec
