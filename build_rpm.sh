@@ -12,5 +12,6 @@ then
 fi
 rm -Rf $RPMBUILD
 mkdir -p $RPMBUILD/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
-./build_src.sh $VER $RPMBUILD/SOURCES
+git archive --prefix=spwd-$VER/ -o spwd-$VER.tar.gz HEAD
+mv spwd-$VER.tar.gz $RPMBUILD/SOURCES
 rpmbuild --define "_topdir $RPMBUILD" --define="spwd_version $VER" -ba ./packaging/spwd.spec
