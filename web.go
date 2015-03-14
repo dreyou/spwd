@@ -206,9 +206,7 @@ func (hf HttpFile) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fileName = strings.Replace(req, "/", "", 1)
 	}
 	fileName = *webRoot + "/" + fileName
-	logger(DEBUG, func() { log.Println("Using file: " + fileName) })
-	file, _ := ioutil.ReadFile(fileName)
-	w.Write(file)
+	readAndWriteFile(fileName, w)
 }
 
 func fileJsConfig(w http.ResponseWriter, r *http.Request) {
@@ -240,17 +238,29 @@ func fileRoot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req := r.URL.RequestURI()
-	logger(DEBUG, func() { log.Println("Servig http requesti for root: " + req) })
+	logger(DEBUG, func() { log.Println("Servig http request for root: " + req) })
 	if req == "/favicon.ico" {
 		logger(DEBUG, func() { log.Println("Returning favicon.ico") })
-		fileIco, _ := ioutil.ReadFile(*webRoot + "/" + "favicon.ico")
-		w.Write(fileIco)
+		readAndWriteFile(*webRoot+"/"+"favicon.ico", w)
 		return
 	} else {
 		logger(DEBUG, func() { log.Println("Returning root.html") })
-		file, _ := ioutil.ReadFile(*webRoot + "/" + "root.html")
-		w.Write(file)
+		readAndWriteFile(*webRoot+"/"+"root.html", w)
+		return
 	}
+}
+
+func readAndWriteFile(path string, w http.ResponseWriter) {
+	path = regexp.MustCompile(`\.\.`).ReplaceAllString(path, `.`)
+	path = regexp.MustCompile(`\/\/`).ReplaceAllString(path, `/`)
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		logger(ERROR, func() { log.Printf("Can't read file: %v", err) })
+		http.Error(w, "404 Resourse not found : you can't access this resource.", 404)
+		return
+	}
+	logger(DEBUG, func() { log.Println("Reading file:" + path) })
+	file, _ := ioutil.ReadFile(path)
+	w.Write(file)
 }
 
 func fileLog(w http.ResponseWriter, r *http.Request) {
@@ -259,6 +269,8 @@ func fileLog(w http.ResponseWriter, r *http.Request) {
 	if req == "/" {
 		logger(DEBUG, func() { log.Println("Root request, redirecting to root.html") })
 		fileRoot(w, r)
+	} else {
+		http.Error(w, "404 Resourse not found : you can't access this resource.", 404)
 	}
 }
 
@@ -291,7 +303,7 @@ func main() {
 		{"/jquery.dataTables.min.js", "text/javascript", "jquery.dataTables.min.js"},
 		{"/jquery-ui.min.css", "text/css", "jquery-ui.min.css"},
 		{"/jquery.jqplot.min.css", "text/css", "jquery.jqplot.min.css"},
-		{"/jquery.dataTables.css", "text/css", "jquery.dataTables.css"},
+		{"/jquery.dataTables.min.css", "text/css", "jquery.dataTables.min.css"},
 		{"/root.css", "text/css", "root.css"},
 		{"/images/", "image/png", ""},
 		{"/root", "text/html", "root.html"},
