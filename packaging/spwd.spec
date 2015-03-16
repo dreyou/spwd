@@ -7,7 +7,7 @@
 
 Name:		spwd	
 Version:	%{?spwd_version}
-Release:	%{release}%{?dist}
+Release:	%{spwd_release}%{?dist}
 Summary:	Sample /proc to web golang daemon
 
 Group:		Appplication/System
